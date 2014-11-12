@@ -1,0 +1,154 @@
+#!/bin/bash
+
+# test if script is called directly or sourced
+if [[ x"${BASH_SOURCE[0]}" != x"$0" ]]
+then
+  __BASH_SOURCED="1"
+else
+  __BASH_SOURCED=""
+fi
+
+# get environment settings
+source "$(dirname "${BASH_SOURCE[0]}")/rvm-mini.env"
+
+__help()
+{
+  echo
+  echo "rvm-mini helper tool"
+  echo
+  echo "Script will help you to organize your project specific mini-rvm environment"
+  echo "Allowed commands:"
+  echo
+  echo "  -i|--ruby-install  [--help]     load and install ruby environment from rvm binaries"
+  echo "  --clean                         drop ruby environment and downloaded gem"
+  echo
+  echo "  -a|--aliases  Project-Path      generate aliases to ruby commands based on your project path"
+  echo "  -u|--unaliases  Project-Path    remove aliases from your shell"
+  echo
+  echo "  -h|--help                       this help"
+  echo
+  echo "Attention: The result for aliases are just echoed to console. You can copy the result"
+  echo "and paste it into your shell or you can just source the result directly to your shell"
+  echo "by running 'source rvm-mini -a your-project-path'"
+  echo
+}
+
+# check params
+if [[ "$1" == "" || "$1" == "--help" || "$1" == "-h" ]]
+then
+  # show help info
+  __help
+  # stop here wether with exit code or return code
+  [[ -n "${__BASH_SOURCED}" ]] && return 0 || exit 0
+fi
+
+# run command
+case "$1" in
+
+  # run installer
+  -i|--ruby-install)
+    # check that not called as sourced
+    [[ -n "${__BASH_SOURCED}" ]] && echo "rvm-mini installation: Do not call via 'source'." && return 1
+    # ok, we can try to install
+    echo "Start ruby installation ..."
+    # everything here should be done based on BASE_PATH
+    cd "${BASE_PATH}"
+    # drop first param
+    shift 1
+    # run installer
+    exec bash tools/ruby-install "$@"
+    ;;
+
+  # drop installation
+  --clean)
+    # check that not called as sourced
+    [[ -n "${__BASH_SOURCED}" ]] && echo "rvm-mini clean: Do not call via 'source'." && return 1
+    # do some countdown before physical remove
+    echo -e "Drop ruby installation in ... \c"
+    for (( i=5; i>0; i--))
+    do
+      echo -e "$i \c"
+      sleep 1
+    done
+    echo "..."
+    # everything here should be done based on BASE_PATH
+    cd "${BASE_PATH}"
+    # check only to remove installed pakages
+    for MODULE in ruby bundler gems
+    do
+      [[ -d "vendor/$MODULE" ]] && rm -rf "vendor/$MODULE" && echo "  $MODULE dropped!"
+    done
+    echo "Ruby installation is cleaned."
+    echo
+    ;;
+
+  # drop installation
+  -a|--aliases)
+    # check that not called as sourced
+    [[ -z "${__BASH_SOURCED}" ]] && echo "rvm-mini aliases: Has to call via 'source'." && exit 1
+    # test mandatory params (project path)
+    if [[ "$2" != "" && -d "$2" ]]
+    then
+      # change do directory to get expanded path
+      cd "$2"
+      # save path
+      PROJECT_PATH="$(pwd)"
+      # get the ID for aliases
+      PROJECT_ID=$(basename "$PROJECT_PATH")
+      # info
+      echo -e "Building aliases for $PROJECT_ID ... \c"
+      # generate aliases and includes to project dir
+      alias "$PROJECT_ID.ruby"='"'"$BASE_PATH/bin/ruby"'" -s -I "'"$PROJECT_PATH"'"'
+      alias "$PROJECT_ID.irb"='"'"$BASE_PATH/bin/irb"'" -s -I "'"$PROJECT_PATH"'"'
+      alias "$PROJECT_ID.rake"='"'"$BASE_PATH/bin/rake"'" -s -I "'"$PROJECT_PATH"'"'
+      alias "$PROJECT_ID.gem"="$BASE_PATH/bin/gem"
+      alias "$PROJECT_ID.bundle"="$BASE_PATH/bin/bundle"
+      # done
+      echo "ok"
+      # show aliases
+      alias | egrep -e "alias\s*$PROJECT_ID.[^=]*="
+    else
+      echo "rvm-mini aliases: Missing or wrong Project-Path parameter"
+      return 1
+    fi
+    ;;
+
+  # drop installation
+  -u|--unaliases)
+    # check that not called as sourced
+    [[ -z "${__BASH_SOURCED}" ]] && echo "rvm-mini unaliases: Has to call via 'source'." && exit 1
+    # test mandatory params (project path)
+    if [[ "$2" != "" && -d "$2" ]]
+    then
+      # change do directory to get expanded path
+      cd "$2"
+      # save path
+      PROJECT_PATH="$(pwd)"
+      # get the ID for aliases
+      PROJECT_ID=$(basename "$PROJECT_PATH")
+      # info
+      echo -e "Doing unaliases for $PROJECT_ID ... \c"
+      # generate aliases and includes to project dir
+      unalias "$PROJECT_ID.ruby" 2>/dev/null 3>/dev/null
+      unalias "$PROJECT_ID.irb" 2>/dev/null 3>/dev/null
+      unalias "$PROJECT_ID.rake" 2>/dev/null 3>/dev/null
+      unalias "$PROJECT_ID.gem" 2>/dev/null 3>/dev/null
+      unalias "$PROJECT_ID.bundle" 2>/dev/null 3>/dev/null
+      # done
+      echo "ok"
+      # show aliases
+      alias | egrep -e "alias\s*$PROJECT_ID.[^=]*="
+    else
+      echo "rvm-mini unaliases: Missing or wrong Project-Path parameter"
+      return 1
+    fi
+    ;;
+
+  # unknown command
+  *)
+    # show help info
+    __help
+    # stop here wether with exit code or return code
+    [[ -n "${__BASH_SOURCED}" ]] && return 0 || exit 0
+    ;;
+esac

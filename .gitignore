@@ -1,0 +1,4 @@
+# files and folders to ignore in rvm-mini environment path
+Gemfile.lock
+vendor
+vendor/*

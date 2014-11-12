@@ -1,0 +1,176 @@
+#!/bin/bash
+
+# check arg
+if [[ "$1" == "--help" || "$1" == "-h" ]]
+then
+  echo
+  echo "ruby package installer - using rvm binaries"
+  echo
+  echo "Script will try to detect OS, Version and Machinetype to locate fitting ruby package."
+  echo "You can override by passing ruby release id and optinial os-version."
+  echo
+  echo "ruby-install                          install current release"
+  echo "ruby-install 2.0.0                    install different release"
+  echo "ruby-install jessie_sid 1.9.3-p453    install different os release and ruby release"
+  echo
+  echo "A list of binary you will find at:"
+  echo "https://rvm.io/binaries/OS/VERSION/MACHINETYPE/ruby-RUBY-RELEASE.tar.bz2"
+  echo
+  exit 0
+fi
+
+# change to base installation directory
+BASE_PATH=$(dirname "$0")"/.."
+cd "$BASE_PATH"
+
+# source conf file to get predefined ruby release to install
+source "ruby-release"
+
+# check for existing ruby installation
+if [[ -d "vendor/ruby" ]]
+then
+  echo
+  echo "It seems that there is already a ruby installation at vendor/ruby. Please clean before new installation. Abort!"
+  exit 1
+fi
+
+#initialize
+__OS="unknown"
+__VERSION="unknown"
+__MACHINE="unknown"
+
+# auto detect os, vers, machine
+__detect_OS() {
+  # check $OSTYPE var, use lowercase
+  OS_CHECK=$(echo "$OSTYPE" | tr '[:upper:]' '[:lower:]')
+  # build test vars
+  if [[ -z "${OS_CHECK##*darwin*}" ]]; then IS_OSX="true"; else IS_OSX=""; fi 
+  if [[ -z "${OS_CHECK##*linux-gnu*}" ]]; then IS_GNU="true"; else IS_GNU=""; fi 
+  # get proc type
+  MACH_CHECK=$(uname -m | tr '[:upper:]' '[:lower:]')
+  # test 64bit environment
+  if [[ -z "${MACH_CHECK##*_64*}" || -z "${MACH_CHECK##*amd64*}" ]]; then IS_64BIT="true"; else IS_64BIT=""; fi
+  # debian based distribution
+  if [[ -n "${IS_GNU}" ]]
+  then
+    # check for ubuntu
+    if [[ -f "/etc/os-release" ]]
+    then
+      # extract id from file
+      OS_ID=$(bash -c 'source /etc/os-release; echo "${ID}"' | tr '[:upper:]' '[:lower:]')
+      # test for valid os
+      if [[ "$OS_ID" == "ubuntu" ]]; then __OS=$OS_ID; fi
+      # extract version from file
+      __VERSION=$(bash -c 'source /etc/os-release; echo "${VERSION_ID}"')
+    # check for debian
+    elif [[ -f "/etc/debian_version" ]]
+    then
+      # fix os name
+      __OS="debian"
+      # try extract version name
+      VERS_SID_JESSIE=$(cat /etc/debian_version | head -n 1 | egrep -i '(jessie|sid)')
+      if [[ -n "${VERS_SID_JESSIE}" ]]
+      then
+        # set fix version id
+        __VERSION="jessie_sid"
+      else
+        # try extract version id
+        __VERSION=$(cat /etc/debian_version | head -n 1 | sed -e 's/^[^0-9]*\([0-9]\+\).*/\1/')
+      fi
+    fi
+  fi
+  # osx environment
+  if [[ -n "${IS_OSX}" ]]
+  then
+    __OS="osx"
+    __VERSION=$(sw_vers -productVersion | sed -e 's/^\([0-9]*\.[0-9]*\).*/\1/')
+  fi
+  # define machine type
+  if [[ -n "${IS_64BIT}" ]]
+  then
+    __MACHINE="x86_64"
+  else
+    __MACHINE="i386"
+  fi
+}
+
+# get system params
+__detect_OS
+
+# check arg
+if [[ "$1" != "" ]]
+then
+  RUBY_RELEASE="$1"
+fi
+
+# check arg 2
+if [[ "$2" != "" ]]
+then
+  # override version 6|7|jessie_sid
+  __VERSION="$1"
+  # shift this arg
+  RUBY_RELEASE="$2"
+fi
+
+# define URL
+RUBY_PACKAGE="https://rvm.io/binaries/${__OS}/${__VERSION}/${__MACHINE}/ruby-${RUBY_RELEASE}.tar.bz2"
+
+# Installation message
+echo "Get ruby package for os/machine type $__OS/$__MACHINE distribution release $__VERSION."
+echo "load ruby binaries from: $RUBY_PACKAGE"
+
+# try to get file
+CHK_URL=$(curl -sSL -Is "$RUBY_PACKAGE" | grep "200 OK")
+
+# test existing of url
+if [[ "$?" != "0" ]]
+then
+  echo
+  echo "Download package is not available. Abort!"
+  exit 2
+fi
+
+# create vendor/ruby and download and extract package
+mkdir -p vendor/ruby
+RUBY_INST=$(curl -sSL "$RUBY_PACKAGE" | tar -xj -C vendor/ruby --strip-components=1 --exclude='*/config' --exclude='*/.irbrc' --exclude='*/lib/ruby/gems' --exclude='*/lib/ruby/site_ruby' --exclude='*/lib/ruby/vendor_ruby' --exclude='*/lib/pkgconfig' --exclude='*/share')
+
+# check status
+if [[ "$?" != "0" ]]
+then
+  echo
+  echo "I am sorry, there was an error during ruby installation. Please retry. Abort!"
+  exit 9
+fi
+
+# get bundler to finish environment
+
+# check project structure
+mkdir -p "vendor/bundler"
+
+# check if need to install bundler first of all
+echo -e "Check bundler ... \c"
+BUNDLER_VERSION="$(bin/bundle --version)"
+if [[ "$?" != "0" ]]
+then
+  # info about new installing
+  echo "now installing ..."
+  # gem install bundler
+  bin/gem install bundler --no-rdoc --no-ri --install-dir vendor/bundler
+  # check status
+  if [[ "$?" != "0" ]]
+  then
+    echo
+    echo "I am sorry, there was an error during bundler installation. Please retry. Abort!"
+    exit 8
+  fi
+else
+  # info already installed
+  echo "installed"
+fi
+
+# well seems to ready with ruby
+echo "Installation was successfull."
+bin/ruby --version
+bin/bundle --version
+
+exit 0;
