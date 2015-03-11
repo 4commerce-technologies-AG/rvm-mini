@@ -36,7 +36,7 @@ ___
 #### Get rvm-mini
 
 ```bash
-$ git clone https://github.com/TomFreudenberg/rvm-mini.git path-to/my-ruby-env
+$ git clone https://github.com/4commerce-technologies-AG/rvm-mini.git path-to/my-ruby-env
 ```
 
 
@@ -70,7 +70,7 @@ your personal workspace directory will give a short usage tutorial for rvm-mini.
 
 $ cd ~/Workspace
 
-$ git clone https://github.com/TomFreudenberg/rvm-mini.git my-ruby-env
+$ git clone https://github.com/4commerce-technologies-AG/rvm-mini.git my-ruby-env
 
 $ my-ruby-env/bin/rvm-mini --ruby-install
 
@@ -317,7 +317,7 @@ ___
 
 Please use the activated issues tracking here on GitHub:
 
-> https://github.com/TomFreudenberg/rvm-mini/issues
+> https://github.com/4commerce-technologies-AG/rvm-mini/issues
 
 #### Known restrictions
 
