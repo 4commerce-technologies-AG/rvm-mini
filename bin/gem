@@ -1,12 +1,38 @@
 #!/bin/bash
 source "$(dirname "${BASH_SOURCE[0]}")/rvm-mini.env"
 
-# use command
-BIN_COMMAND="${RUBY_PATH}/bin/${COMMAND}"
+
+# test for extended gem command "run" to exec tool binaries
+# installed by some gems like rails
+if [[ "$1" == "run" ]]
+then
+  # wrapper for installed gems and their bins
+  if [[ "$2" == "" ]]
+  then
+    echo "Missing gem run command parameter!" >&2
+    exit 1
+  elif [[ "$2" == "-l" || "$2" == "--list" ]]
+  then
+    echo "Available gem tools:"
+    for CMD in $(ls "${GEM_HOME}/bin")
+    do
+      echo "  ${CMD}"
+    done
+    exit 0
+  fi
+  # save second parameter as gem tool command and drop all from arguments
+  COMMAND="$(basename "$2")"; shift 2
+  # use gem tool as command
+  BIN_COMMAND="${GEM_HOME}/bin/${COMMAND}"
+else
+  # use gem binary as command
+  BIN_COMMAND="${RUBY_PATH}/bin/${COMMAND}"
+fi
+
 # exec
 if [[ -x "${BIN_COMMAND}" ]]
 then
-  PATH="${RUBY_PATH}/bin:$PATH" GEM_HOME="${GEM_HOME}" GEM_PATH="${GEM_PATH}:${BUNDLER_PATH}" exec "${BIN_COMMAND}" "$@"
+  PATH="${GEM_HOME}/bin:${RUBY_PATH}/bin:$PATH" GEM_HOME="${GEM_HOME}" GEM_PATH="${GEM_PATH}:${BUNDLER_PATH}" exec "${BIN_COMMAND}" "$@"
 else
   echo "${COMMAND} seems to be not installed!" >&2
   exit 1
