@@ -14,10 +14,15 @@ then
   elif [[ "$2" == "-l" || "$2" == "--list" ]]
   then
     echo "Available gem tools:"
-    for CMD in $(ls "${GEM_HOME}/bin")
-    do
-      echo "  ${CMD}"
-    done
+    if [[ ! -d "${GEM_HOME}/bin" ]]
+    then
+      echo "  none installed yet"
+    else
+      for CMD in $(ls "${GEM_HOME}/bin")
+      do
+        echo "  ${CMD}"
+      done
+    fi
     exit 0
   fi
   # save second parameter as gem tool command and drop all from arguments
