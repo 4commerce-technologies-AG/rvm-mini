@@ -7,14 +7,13 @@ runtime environment.
 
 Please download or check out rvm-mini from github beside your project folders.
 You are able to generate as many environments for your ruby projects as you like.
+
 Each environment possibly may have its own set of ruby release and gems. The
-install script will download a rvm binary as well as the bundler gem. Afterwards
-you can use the environment to download and install your necessary gems and
-run your ruby projects.
+install script will download a rvm binary as well as the bundler gem. Afterwards you can use the environment to download and install your necessary gems and run your ruby projects.
 
-You can run different ruby versions and gems for each of your projects.
+New since release 1.0 you may also use your system wide ruby binaries but create project specific gem dependencies. This is very useful when running ruby on [Windows via Cygwin](https://www.cygwin.com/).
 
-rvm-mini is getting you small and swift ruby environments.
+rvm-mini is getting you small and swift ruby environments – you are able to run and organize different ruby versions and gems for each of your projects.
 
 
 ___
@@ -22,9 +21,7 @@ ___
 
 ## Pre-requisites on your system
 
-You need a running linux/unix system with bash installed. We tested rvm-mini until
-now just on a few popular linux distributions (Debian, Ubuntu, CentOS). It should
-at least be able to run on more with available bash. 
+You need a running Linux/Unix or Windows/Cygwin system with bash installed. We tested rvm-mini until now just on a few popular linux distributions (Debian, Ubuntu, CentOS and Windows/Cygwin). It should at least be able to run on more with available bash. 
 
 
 ___
@@ -85,7 +82,7 @@ Your projects source file `hw.rb` should look like:
 ```ruby
 
 # Hello World Example
-puts "Hello World!""
+puts "Hello World!"
 
 ```
 
@@ -132,10 +129,7 @@ $ ../my-ruby-env/bin/gem list --local
 
 #### Using additional parameters to ruby and Co.
 
-If you have divided your sources into a number of source files, you need sometimes
-to add parameters like `-I` to ruby. You can do so with rvm-mini. Let's say you
-have to include the sources from project folder `lib/addons` which are required by
-`require 'lib/addons/mylib'` to your source, then run:
+If you have divided your sources into a number of source files, you need sometimes to add parameters like `-I` to ruby. You can do so with rvm-mini. Let's say you have to include the sources from project folder `lib/addons` which are required by `require 'lib/addons/mylib'` to your source, then run:
 
 ```bash
 $ ../my-ruby-env/bin/ruby -I . hw.rb
@@ -149,10 +143,7 @@ ___
 
 ## Life is easier with aliases
 
-Instead using all the time a full-path call to rvm-mini's, you can generate a number of aliases
-to easily use the environment. To activate the aliases into your running shell you need to
-call the script via `source`. The alias generator is called with the root path of your project
-as parameter. The name of your project path is used as a project-id for the aliases.
+Instead using all the time a full-path call to rvm-mini's directories, you can generate a number of aliases to easily use the environment. To activate the aliases into your running shell you need to call the script via `source`. The alias generator should be called with the root path of your project path and is used as the aliases prefix.
 
 #### Add aliases to your running shell
 
@@ -160,15 +151,13 @@ as parameter. The name of your project path is used as a project-id for the alia
 $ source ../my-ruby-env/bin/rvm-mini --aliases ~/Workspace/hello_world
 ```
 
-Instead having to specify your project root as full path, rvm-mini can also handle relative
-pathes and rebuild them to the correct full path. So the right call is:
+Instead having to specify your project root as full path, rvm-mini can also handle relative pathes to your projects home and rebuild them to the correct full path. So the right call is:
 
 ```bash
 $ source ../my-ruby-env/bin/rvm-mini --aliases .
 ```
 
-After generating the aliases, rvm-mini will show all added aliases for your current selected
-environment and project. Now next time you can run just:
+After generating the aliases, rvm-mini will show all added aliases for your current selected environment and project. Now next time you can run just:
 
 ```bash
 $ hello_world.ruby hw.rb
@@ -179,9 +168,7 @@ It is that easy :-)
 
 #### Automatic include your project root
 
-When using the aliased commands, your project root path is automaticly added as call
-param to ruby, rake and irb. So you can require files from project subfolders without
-extra specifying to include your root path.
+When using the aliased commands, your project root path is automaticly added as call param to ruby, rake and irb. So you can require files from project subfolders without extra specifying to include your root path.
 
 
 ___
@@ -189,9 +176,7 @@ ___
 
 ## Available wrappers
 
-To get a full running running ruby environment, rvm-mini has 5 wrapper scripts on board.
-The wrappers handle to call the environments local installed ruby and gems. Following
-wrappers exist in each environments `bin` folder:
+To get a full running running ruby environment, rvm-mini has 6 wrapper scripts on board. The wrappers handle to call the environments local installed ruby and gems. Following wrappers exist in each environments `bin` folder:
 
 > `my-ruby-env/bin/ruby`
 
@@ -199,12 +184,13 @@ wrappers exist in each environments `bin` folder:
 
 > `my-ruby-env/bin/irb`
 
+> `my-ruby-env/bin/erb`
+
 > `my-ruby-env/bin/gem`
 
 > `my-ruby-env/bin/bundle`
 
-They do what you expect them to do. If you are using aliases, then you will have a project
-related alias for each, like
+They do what you expect them to do. If you are using aliases, then you will have a project related alias for each, like:
 
 > `project.ruby`
 
@@ -212,9 +198,35 @@ related alias for each, like
 
 > `project.irb`
 
+> `project.erb`
+
 > `project.gem`
 
 > `project.bundle`
+
+
+---
+
+
+## Addtional gem run option
+
+Sometimes you will get some additional exec commands when installing gems like rails. To run such kind of additional commands you need to wrap your environment as well. This is done by the new `run` parameter:
+
+```bash
+$ ../my-ruby-env/bin/gem run rails --version
+```
+
+or as aliased command:
+
+```bash
+$ hello_world.gem run rails --version
+```
+
+You may get a list of available gem tools when using `-l` or `--list` option:
+
+```bash
+$ ../my-ruby-env/bin/gem run --list
+```
 
 
 ___
@@ -222,8 +234,7 @@ ___
 
 ## rvm-mini script
 
-Main functions from rvm-mini are handled via the `bin/rvm-mini` bash script. To get all
-options and a short help call:
+Main functions from rvm-mini are handled via the `bin/rvm-mini` bash script. To get all options and a short help call:
 
 ```bash
 $ ../my-ruby-env/bin/rvm-mini --help
@@ -268,6 +279,7 @@ This is how projects and environments sit beside each other and are typically st
 
 ```
 
+
 #### Cleanup ruby and gems
 
 Easy, just use `rvm-mini --clean` or drop the folder `vendor`
@@ -283,27 +295,21 @@ ___
 
 ## Ruby releases and this repo management
 
-This repo will have a number of branches to give you an easy option to preselect the
-ruby release to install without changing files or adding additional install parameters.
+This repo will have a number of branches to give you an easy option to preselect the ruby release to install without changing files or adding additional install parameters.
 
 #### Branch ruby-x.x.x
 
-The branch is numbered as the corresponding ruby version, e.g. `ruby-2.1.2` has defined
-ruby version 2.1.2 as default.
+The branch is numbered as the corresponding ruby version, e.g. `ruby-2.2.1` has defined ruby version 2.2.1 as default.
 
 #### Branch master
 
-The master branch will try to always direct to the latest available realease. If there
-are functional extensions to rvm-mini the version branches get updates as well.
+The master branch will try to always direct to the latest available realease. If there are important functional extensions to rvm-mini the version branches get updates as well.
 
 #### Default ruby version
 
-The default ruby version to install is stored in file `ruby-release`. With any branch of
-rvm-mini you can install any available binary from rvm binaries. You just have to specify
-your selected version when calling `rvm-mini --ruby-install`.
+The default ruby version to install is stored in file `ruby-release`. With any branch of rvm-mini you can install any available binary from rvm binaries. You just have to specify your selected version when calling `rvm-mini --ruby-install` or use `latest` to automatically fetch latest available from rvm.
 
-More infos about specific options and versions are available on the binaries download area
-from rvm or by help from rvm-mini.
+More infos about specific options and versions are available on the binaries download area from rvm or by help from rvm-mini.
 
 > `$ rvm-mini --ruby-install --help`.
 
@@ -321,13 +327,7 @@ Please use the activated issues tracking here on GitHub:
 
 #### Known restrictions
 
-Currently we had not fully checked, that all scripts will operate correct if pathnames
-for environment or project folder containing spaces. At least aliases are not allowed
-to have spaces for the identifiers. Please have a look to your names before you run into
-problems.
-
-
-___
+Currently we had not fully checked, that all scripts will operate correct if pathnames for environment or project folder containing spaces. At least aliases are not allowed to have spaces for the identifiers. Please have a look to your names before you run into problems.
 
 
 ## References
@@ -337,3 +337,11 @@ The original Ruby Version Manager hompage:
 > http://rvm.io
 
 > https://rvm.io/binaries/
+
+
+### Author & Credits
+
+Author: [Tom Freudenberg](http://about.me/tom.freudenberg)
+
+Copyright (c) 2014-2015 [Tom Freudenberg](http://www.4commerce.de/), [4commerce technologies AG](http://www.4commerce.de/), released under the MIT license
+
