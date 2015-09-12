@@ -1,2 +1,4 @@
 # predefined ruby release to install
-RUBY_RELEASE="2.1.3"
+# use your preferred release version like "2.2.1"
+# or keyword "latest" to specify the ruby release
+RUBY_RELEASE="latest"

@@ -9,9 +9,10 @@ then
   echo "Script will try to detect OS, Version and Machinetype to locate fitting ruby package."
   echo "You can override by passing ruby release id and optinial os-version."
   echo
-  echo "ruby-install                          install current release"
+  echo "ruby-install                          install latest release or defined by ruby-release file"
   echo "ruby-install 2.0.0                    install different release"
   echo "ruby-install jessie_sid 1.9.3-p453    install different os release and ruby release"
+  echo "ruby-install local                    install just symbolic links to already OS installed binaries"
   echo
   echo "A list of binary you will find at:"
   echo "https://rvm.io/binaries/OS/VERSION/MACHINETYPE/ruby-RUBY-RELEASE.tar.bz2"
@@ -112,34 +113,59 @@ then
   RUBY_RELEASE="$2"
 fi
 
-# define URL
-RUBY_PACKAGE="https://rvm.io/binaries/${__OS}/${__VERSION}/${__MACHINE}/ruby-${RUBY_RELEASE}.tar.bz2"
-
-# Installation message
-echo "Get ruby package for os/machine type $__OS/$__MACHINE distribution release $__VERSION."
-echo "load ruby binaries from: $RUBY_PACKAGE"
-
-# try to get file
-CHK_URL=$(curl -sSL -Is "$RUBY_PACKAGE" | grep "200 OK")
-
-# test existing of url
-if [[ "$?" != "0" ]]
+# check to auto-detect latest ruby release
+if [[ "${RUBY_RELEASE}" == "" || "${RUBY_RELEASE}" == "latest" ]]
 then
-  echo
-  echo "Download package is not available. Abort!"
-  exit 2
+  # try to detect latest binaries for this OS/VERSION/MACHINE
+  LATEST_RUBY_RELEASE=$(curl -slL --compressed --url "https://rvm.io/binaries/${__OS}/${__VERSION}/${__MACHINE}/" | sed -e 's/^.*href="ruby-\([^"]*\)">.*/\1/' | egrep '^.*\.tar\.bz2' | sort --unique --reverse | head -n 1)
+  # re-set RUBY_RELEASE
+  RUBY_RELEASE="${LATEST_RUBY_RELEASE/.tar.bz2*/}"
 fi
 
-# create vendor/ruby and download and extract package
-mkdir -p vendor/ruby
-RUBY_INST=$(curl -sSL "$RUBY_PACKAGE" | tar -xj -C vendor/ruby --strip-components=1 --exclude='*/config' --exclude='*/.irbrc' --exclude='*/lib/ruby/gems' --exclude='*/lib/ruby/site_ruby' --exclude='*/lib/ruby/vendor_ruby' --exclude='*/lib/pkgconfig' --exclude='*/share')
-
-# check status
-if [[ "$?" != "0" ]]
+# check if to use system wide ruby installation or get binaries from rvmio
+if [[ "${RUBY_RELEASE}" == "local" ]]
 then
-  echo
-  echo "I am sorry, there was an error during ruby installation. Please retry. Abort!"
-  exit 9
+  # Installation message
+  echo "Use current ruby installation from $__OS/$__MACHINE distribution release $__VERSION."
+
+  # create symbolic links to vendor/ruby
+  mkdir -p vendor/ruby/bin
+  # try to locate necessary commands
+  for CMD in ruby gem rake irb erb ri rdoc
+  do
+    [[ -x "$(which ${CMD})" ]] && ln -s "$(which ${CMD})" "vendor/ruby/bin/${CMD}"
+  done
+
+else
+  # define URL
+  RUBY_PACKAGE="https://rvm.io/binaries/${__OS}/${__VERSION}/${__MACHINE}/ruby-${RUBY_RELEASE}.tar.bz2"
+
+  # Installation message
+  echo "Get ruby package for os/machine type $__OS/$__MACHINE distribution release $__VERSION."
+  echo "load ruby binaries from: $RUBY_PACKAGE"
+
+  # try to get file
+  CHK_URL=$(curl -sSL -Is "$RUBY_PACKAGE" | grep "200 OK")
+
+  # test existing of url
+  if [[ "$?" != "0" ]]
+  then
+    echo
+    echo "Download package is not available. Abort!"
+    exit 2
+  fi
+
+  # create vendor/ruby and download and extract package
+  mkdir -p vendor/ruby
+  RUBY_INST=$(curl -sSL "$RUBY_PACKAGE" | tar -xj -C vendor/ruby --strip-components=1 --exclude='*/config' --exclude='*/.irbrc' --exclude='*/lib/ruby/gems' --exclude='*/lib/ruby/site_ruby' --exclude='*/lib/ruby/vendor_ruby' --exclude='*/lib/pkgconfig' --exclude='*/share')
+
+  # check status
+  if [[ "$?" != "0" ]]
+  then
+    echo
+    echo "I am sorry, there was an error during ruby installation. Please retry. Abort!"
+    exit 9
+  fi
 fi
 
 # get bundler to finish environment
