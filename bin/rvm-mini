@@ -98,10 +98,10 @@ case "$1" in
       # info
       echo -e "Building aliases for $PROJECT_ID ... \c"
       # generate aliases and includes to project dir
-      alias "$PROJECT_ID.ruby"='"'"$BASE_PATH/bin/ruby"'" -s -I "'"$PROJECT_PATH"'"'
+      alias "$PROJECT_ID.ruby"='"'"$BASE_PATH/bin/ruby"'" -I "'"$PROJECT_PATH"'"'
       alias "$PROJECT_ID.irb"='"'"$BASE_PATH/bin/irb"'" -I "'"$PROJECT_PATH"'"'
       alias "$PROJECT_ID.erb"="$BASE_PATH/bin/erb"
-      alias "$PROJECT_ID.rake"='"'"$BASE_PATH/bin/rake"'" -s -I "'"$PROJECT_PATH"'"'
+      alias "$PROJECT_ID.rake"='"'"$BASE_PATH/bin/rake"'" -I "'"$PROJECT_PATH"'"'
       alias "$PROJECT_ID.gem"="$BASE_PATH/bin/gem"
       alias "$PROJECT_ID.bundle"="$BASE_PATH/bin/bundle"
       # done
