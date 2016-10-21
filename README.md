@@ -13,6 +13,8 @@ install script will download a rvm binary as well as the bundler gem. Afterwards
 
 New since release 1.0 you may also use your system wide ruby binaries but create project specific gem dependencies. This is very useful when running ruby on [Windows via Cygwin](https://www.cygwin.com/).
 
+Since release 1.1 rvm-mini will also automatically update rubygems to latest release. This prevents a number of SSL certificate errors when using outdated rubygems.
+
 rvm-mini is getting you small and swift ruby environments – you are able to run and organize different ruby versions and gems for each of your projects.
 
 
@@ -39,7 +41,7 @@ $ git clone https://github.com/4commerce-technologies-AG/rvm-mini.git path-to/my
 
 #### Setup your environment
 
-Get ruby binary for your os and install bundler gem
+Get ruby binary for your os and update rubygems and install bundler gem
 
 ```bash
 $ path-to/my-ruby-env/bin/rvm-mini --ruby-install
@@ -295,15 +297,13 @@ ___
 
 ## Ruby releases and this repo management
 
-This repo will have a number of branches to give you an easy option to preselect the ruby release to install without changing files or adding additional install parameters.
+#### Branch master
+
+The master branch will try to always direct to the latest available realease. If there are important functional extensions to rvm-mini the version branches get updates as well.
 
 #### Branch ruby-x.x.x
 
 The branch is numbered as the corresponding ruby version, e.g. `ruby-2.2.1` has defined ruby version 2.2.1 as default.
-
-#### Branch master
-
-The master branch will try to always direct to the latest available realease. If there are important functional extensions to rvm-mini the version branches get updates as well.
 
 #### Default ruby version
 
@@ -327,7 +327,7 @@ Please use the activated issues tracking here on GitHub:
 
 #### Known restrictions
 
-Currently we had not fully checked, that all scripts will operate correct if pathnames for environment or project folder containing spaces. At least aliases are not allowed to have spaces for the identifiers. Please have a look to your names before you run into problems.
+All scripts will not operate correct if pathnames for environment or project folder containing spaces. Please have a look to your names before you run into problems.
 
 
 ## References
@@ -338,10 +338,12 @@ The original Ruby Version Manager hompage:
 
 > https://rvm.io/binaries/
 
+> https://rubygems.org/pages/download
+
 
 ### Author & Credits
 
 Author: [Tom Freudenberg](http://about.me/tom.freudenberg)
 
-Copyright (c) 2014-2015 [Tom Freudenberg](http://www.4commerce.de/), [4commerce technologies AG](http://www.4commerce.de/), released under the MIT license
+Copyright (c) 2014-2016 [Tom Freudenberg](http://www.4commerce.de/), [4commerce technologies AG](http://www.4commerce.de/), released under the MIT license
 
