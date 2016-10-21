@@ -1,8 +1,7 @@
 #!/bin/bash
 
-# check arg
-if [[ "$1" == "--help" || "$1" == "-h" ]]
-then
+# show help
+__help() {
   echo
   echo "ruby package installer - using rvm binaries"
   echo
@@ -14,11 +13,17 @@ then
   echo "ruby-install jessie_sid 1.9.3-p453    install different os release and ruby release"
   echo "ruby-install local                    install just symbolic links to already OS installed binaries"
   echo
+  echo "Update rubygems during installation."
+  echo
+  echo "ruby-install --update-rubygems        install ruby and update rubygems to latest release (default)"
+  echo "ruby-install --update-rubygems 2.6.1  install ruby and update rubygems to release 2.6.1"
+  echo "ruby-install --no-update-rubygems     install ruby and do not update rubygems"
+  echo
   echo "A list of binary you will find at:"
   echo "https://rvm.io/binaries/OS/VERSION/MACHINETYPE/ruby-RUBY-RELEASE.tar.bz2"
   echo
   exit 0
-fi
+}
 
 # change to base installation directory
 BASE_PATH=$(dirname "$0")"/.."
@@ -98,20 +103,60 @@ __detect_OS() {
 # get system params
 __detect_OS
 
-# check arg
-if [[ "$1" != "" ]]
-then
-  RUBY_RELEASE="$1"
-fi
+# initialize
+RUBY_RELEASE=""
+UPDATE_RUBYGEMS="latest"
 
-# check arg 2
-if [[ "$2" != "" ]]
-then
-  # override version 6|7|jessie_sid
-  __VERSION="$1"
-  # shift this arg
-  RUBY_RELEASE="$2"
-fi
+# read and detect args
+while [ "$1" != "" ]
+do
+  # check arguments
+  case "$1" in
+
+    # run installer
+    -h|--help)
+      __help
+      ;;
+
+    # disable update of rubygems
+    --no-update-rubygems)
+      UPDATE_RUBYGEMS=""
+      ;;
+
+    # enable (default) update of rubygems
+    --update-rubygems)
+      UPDATE_RUBYGEMS="latest"
+      # check for a special given release
+      if [[ "$2" != "" ]]
+      then
+        UPDATE_RUBYGEMS="$2"
+        shift
+      fi
+      ;;
+
+    # test unknown options
+    -*|--*)
+      __help
+      ;;
+
+    # use args as options for different ruby OS VERSION and RELEASE build
+    *)
+      # check if special ruby release was already set
+      if [[ "$RUBY_RELEASE" != "" ]]
+      then
+        # if more than 1 arg was given, that means version was set in front of ruby release
+        __VERSION="$RUBY_RELEASE"
+      fi
+
+      # fix release to install
+      RUBY_RELEASE="$1"
+      ;;
+
+  esac
+
+  # next arg
+  shift
+done
 
 # check to auto-detect latest ruby release
 if [[ "${RUBY_RELEASE}" == "" || "${RUBY_RELEASE}" == "latest" ]]
@@ -168,6 +213,75 @@ else
   fi
 fi
 
+# update rubygems to latest available
+if [[ "$UPDATE_RUBYGEMS" != "" ]]
+then
+  # check to detect latest rubygems release
+  if [[ "$UPDATE_RUBYGEMS" == "latest" ]]
+  then
+    LATEST_RUBYGEMS_RELEASE=$(curl -slL --compressed --url "https://rubygems.org/pages/download?locale=en" | sed -e 's/^.*href=".*\/rubygems\/rubygems-\([^"]*\)">.*/\1/' | egrep '^.*\.tgz' | sort --unique --reverse | head -n 1)
+    # re-set UPDATE_RUBYGEMS
+    UPDATE_RUBYGEMS="${LATEST_RUBYGEMS_RELEASE/.tgz*/}"
+  fi
+
+  # test if able to handle that rubygems version
+  if [[ "$UPDATE_RUBYGEMS" < "2.0.0" ]] || ! [[ "$UPDATE_RUBYGEMS" < ":" ]]
+  then
+    echo
+    echo "Release for rubygems update must be a valid value starting at 2.0.0. Abort!"
+    exit 2
+  fi
+
+  # define download URL
+  RUBYGEMS_PACKAGE="https://rubygems.org/rubygems/rubygems-${UPDATE_RUBYGEMS}.tgz"
+
+  # Installation message
+  echo "Get rubygems package from: $RUBYGEMS_PACKAGE"
+
+  # try to get file
+  CHK_URL=$(curl -sSL -Is "$RUBYGEMS_PACKAGE" | grep "200 OK")
+
+  # test existing of url
+  if [[ "$?" != "0" ]]
+  then
+    echo
+    echo "Download for rubygems is not available. Abort!"
+    exit 2
+  fi
+
+  # check location of current rvm built-in rubygems
+  CHK_RUBYGEMS_INSTALLED=$(find vendor/ruby -type d -name 'rubygems' | wc -l | sed -e 's/[ \t\r\n]*//')
+
+  # test existing rubygems
+  if [[ "$CHK_RUBYGEMS_INSTALLED" != "1" ]]
+  then
+    echo
+    echo "Can't handle and update your current built-in rubygems. Abort!"
+    exit 2
+  fi
+
+  # get location of current rvm built-in rubygems
+  CHK_RUBYGEMS_INSTALLED=$(find vendor/ruby -type d -name 'rubygems')
+
+  # drop that installation folder // other files get overriden
+  rm -rf "$CHK_RUBYGEMS_INSTALLED"
+
+  # extract dirname to extract in
+  PATH_RUBYGEMS_INSTALLED=$(dirname "$CHK_RUBYGEMS_INSTALLED")
+
+  # replace inside odl lib path and download and extract package
+  RUBYGEMS_INST=$(curl -sSL "$RUBYGEMS_PACKAGE" | tar -xz -C "$PATH_RUBYGEMS_INSTALLED" --strip-components=2 --include="*-$UPDATE_RUBYGEMS/lib")
+
+  # check status
+  if [[ "$?" != "0" ]]
+  then
+    echo
+    echo "I am sorry, there was an error during rubygems installation. Please retry. Abort!"
+    exit 9
+  fi
+
+fi
+
 # get bundler to finish environment
 
 # check project structure
@@ -196,7 +310,8 @@ fi
 
 # well seems to ready with ruby
 echo "Installation was successfull."
-bin/ruby --version
-bin/bundle --version
+echo -e "ruby --version: \c" ; bin/ruby --version
+echo -e "gem --version: \c" ; bin/gem --version
+echo -e "bundler --version: \c" ; bin/bundle --version
 
 exit 0;
