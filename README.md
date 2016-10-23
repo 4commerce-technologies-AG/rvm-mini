@@ -338,6 +338,8 @@ The original Ruby Version Manager hompage:
 
 > https://rvm.io/binaries/
 
+The RubyGems Manager hompage
+
 > https://rubygems.org/pages/download
 
 
