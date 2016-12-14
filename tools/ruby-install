@@ -187,7 +187,7 @@ else
 
   # Installation message
   echo "Get ruby package for os/machine type $__OS/$__MACHINE distribution release $__VERSION."
-  echo "load ruby binaries from: $RUBY_PACKAGE"
+  echo "Load ruby binaries from: $RUBY_PACKAGE"
 
   # try to get file
   CHK_URL=$(curl -sSL -Is "$RUBY_PACKAGE" | grep "200 OK")
@@ -225,10 +225,11 @@ then
   fi
 
   # test if able to handle that rubygems version
-  if [[ "$UPDATE_RUBYGEMS" < "2.0.0" ]] || ! [[ "$UPDATE_RUBYGEMS" < ":" ]]
+  if ! [[ "$UPDATE_RUBYGEMS" =~ ^([2-9]|[1-9][0-9]+)(\.[0-9]+)*$ ]]
   then
     echo
-    echo "Release for rubygems update must be a valid value starting at 2.0.0. Abort!"
+    echo "Downloaded rubygems release $UPDATE_RUBYGEMS is not supported by rvm-mini installer."
+    echo "Release for rubygems update must be a valid version string starting at 2.0.0. Abort!"
     exit 2
   fi
 
@@ -236,7 +237,7 @@ then
   RUBYGEMS_PACKAGE="https://rubygems.org/rubygems/rubygems-${UPDATE_RUBYGEMS}.tgz"
 
   # Installation message
-  echo "Get rubygems package from: $RUBYGEMS_PACKAGE"
+  echo "Update rubygems package from: $RUBYGEMS_PACKAGE"
 
   # try to get file
   CHK_URL=$(curl -sSL -Is "$RUBYGEMS_PACKAGE" | grep "200 OK")
@@ -269,17 +270,32 @@ then
   # extract dirname to extract in
   PATH_RUBYGEMS_INSTALLED=$(dirname "$CHK_RUBYGEMS_INSTALLED")
 
-  # replace inside odl lib path and download and extract package
-  RUBYGEMS_INST=$(curl -sSL "$RUBYGEMS_PACKAGE" | tar -xz -C "$PATH_RUBYGEMS_INSTALLED" --strip-components=2 --include="*-$UPDATE_RUBYGEMS/lib")
+  # in case that tar option --include is not portable we need to extract the content into
+  # some temp directory and move wanted content from there
+  RUBYGEMS_TMP="vendor/tmp_rubygems"
+
+  # clean and recreate
+  rm -rf "$RUBYGEMS_TMP"; mkdir -p "$RUBYGEMS_TMP"
+
+  # download and extract package to temp path
+  RUBYGEMS_INST=$(curl -sSL "$RUBYGEMS_PACKAGE" | tar -xz -C "$RUBYGEMS_TMP")
 
   # check status
   if [[ "$?" != "0" ]]
   then
+    # in any case drop the temp folder
+    rm -rf "$RUBYGEMS_TMP"
+
     echo
     echo "I am sorry, there was an error during rubygems installation. Please retry. Abort!"
     exit 9
   fi
 
+  # get content from lib and replace inside old lib path
+  find "$RUBYGEMS_TMP" -mindepth 3 -maxdepth 3 -path "*-$UPDATE_RUBYGEMS/lib/*" -exec mv -f "{}" "$PATH_RUBYGEMS_INSTALLED" \;
+
+  # in any case drop the temp folder
+  rm -rf "$RUBYGEMS_TMP"
 fi
 
 # get bundler to finish environment
@@ -293,7 +309,7 @@ BUNDLER_VERSION="$(bin/bundle --version)"
 if [[ "$?" != "0" ]]
 then
   # info about new installing
-  echo "now installing ..."
+  echo "Now installing ..."
   # gem install bundler
   bin/gem install bundler --no-rdoc --no-ri --install-dir vendor/bundler
   # check status
