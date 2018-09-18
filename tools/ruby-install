@@ -50,8 +50,8 @@ __detect_OS() {
   # check $OSTYPE var, use lowercase
   OS_CHECK=$(echo "$OSTYPE" | tr '[:upper:]' '[:lower:]')
   # build test vars
-  if [[ -z "${OS_CHECK##*darwin*}" ]]; then IS_OSX="true"; else IS_OSX=""; fi 
-  if [[ -z "${OS_CHECK##*linux-gnu*}" ]]; then IS_GNU="true"; else IS_GNU=""; fi 
+  if [[ -z "${OS_CHECK##*darwin*}" ]]; then IS_OSX="true"; else IS_OSX=""; fi
+  if [[ -z "${OS_CHECK##*linux-gnu*}" ]]; then IS_GNU="true"; else IS_GNU=""; fi
   # get proc type
   MACH_CHECK=$(uname -m | tr '[:upper:]' '[:lower:]')
   # test 64bit environment
@@ -190,7 +190,7 @@ else
   echo "Load ruby binaries from: $RUBY_PACKAGE"
 
   # try to get file
-  CHK_URL=$(curl -sSL -Is "$RUBY_PACKAGE" | grep "200 OK")
+  CHK_URL=$(curl -sSL -Is "$RUBY_PACKAGE" | grep -E "(HTTP/2 200|200 OK)")
 
   # test existing of url
   if [[ "$?" != "0" ]]
@@ -240,7 +240,7 @@ then
   echo "Update rubygems package from: $RUBYGEMS_PACKAGE"
 
   # try to get file
-  CHK_URL=$(curl -sSL -Is "$RUBYGEMS_PACKAGE" | grep "200 OK")
+  CHK_URL=$(curl -sSL -Is "$RUBYGEMS_PACKAGE" | grep -E "(HTTP/2 200|200 OK)")
 
   # test existing of url
   if [[ "$?" != "0" ]]

@@ -347,5 +347,5 @@ The RubyGems Manager hompage
 
 Author: [Tom Freudenberg](http://about.me/tom.freudenberg)
 
-Copyright (c) 2014-2016 [Tom Freudenberg](http://www.4commerce.de/), [4commerce technologies AG](http://www.4commerce.de/), released under the MIT license
+Copyright (c) 2014-2018 [Tom Freudenberg](http://www.4commerce.de/), [4commerce technologies AG](http://www.4commerce.de/), released under the MIT license
 
