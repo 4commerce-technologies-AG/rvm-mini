@@ -15,6 +15,8 @@ New since release 1.0 you may also use your system wide ruby binaries but create
 
 Since release 1.1 rvm-mini will also automatically update rubygems to latest release. This prevents a number of SSL certificate errors when using outdated rubygems.
 
+Since release release 1.4 rvm-mini will automatically try to get binaries also from [rubies.travis-ci.org](http://rubies.travis.org/).
+
 rvm-mini is getting you small and swift ruby environments – you are able to run and organize different ruby versions and gems for each of your projects.
 
 
@@ -299,11 +301,7 @@ ___
 
 #### Branch master
 
-The master branch will try to always direct to the latest available realease. If there are important functional extensions to rvm-mini the version branches get updates as well.
-
-#### Branch ruby-x.x.x
-
-The branch is numbered as the corresponding ruby version, e.g. `ruby-2.2.1` has defined ruby version 2.2.1 as default.
+The master branch will try to always direct to the latest available realease.
 
 #### Default ruby version
 
@@ -314,6 +312,7 @@ More infos about specific options and versions are available on the binaries dow
 > `$ rvm-mini --ruby-install --help`.
 
 > https://rvm.io/binaries/
+> http://rubies.travis-ci.org/
 
 
 ___
@@ -335,8 +334,6 @@ All scripts will not operate correct if pathnames for environment or project fol
 The original Ruby Version Manager hompage:
 
 > http://rvm.io
-
-> https://rvm.io/binaries/
 
 The RubyGems Manager hompage
 
