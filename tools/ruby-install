@@ -10,7 +10,8 @@ __help() {
   echo
   echo "ruby-install                          install latest release or defined by ruby-release file"
   echo "ruby-install 2.0.0                    install different release"
-  echo "ruby-install jessie_sid 1.9.3-p453    install different os release and ruby release"
+  echo "ruby-install 2.3.x                    install latest from releases 2.3"
+  echo "ruby-install 12.04 1.9.3-p545         install different os release and ruby release"
   echo "ruby-install local                    install just symbolic links to already OS installed binaries"
   echo
   echo "Update rubygems during installation."
@@ -19,8 +20,9 @@ __help() {
   echo "ruby-install --update-rubygems 2.6.1  install ruby and update rubygems to release 2.6.1"
   echo "ruby-install --no-update-rubygems     install ruby and do not update rubygems"
   echo
-  echo "A list of binary you will find at:"
-  echo "https://rvm.io/binaries/OS/VERSION/MACHINETYPE/ruby-RUBY-RELEASE.tar.bz2"
+  echo "A list of binaries you will find at:"
+  echo " - https://rvm.io/binaries/OS/VERSION/MACHINETYPE/ruby-RUBY-RELEASE.tar.bz2"
+  echo " - http://rubies.travis-ci.org"
   echo
   exit 0
 }
@@ -28,9 +30,6 @@ __help() {
 # change to base installation directory
 BASE_PATH=$(dirname "$0")"/.."
 cd "$BASE_PATH"
-
-# source conf file to get predefined ruby release to install
-source "ruby-release"
 
 # check for existing ruby installation
 if [[ -d "vendor/ruby" ]]
@@ -40,10 +39,19 @@ then
   exit 1
 fi
 
-#initialize
+# initialize
 __OS="unknown"
 __VERSION="unknown"
 __MACHINE="unknown"
+__RUBY_RELEASE=""
+
+# initialize globals
+RUBY_RELEASE=""
+RUBY_PACKAGE=""
+UPDATE_RUBYGEMS="latest"
+
+# source conf file to get predefined ruby release to install
+source "ruby-release"
 
 # auto detect os, vers, machine
 __detect_OS() {
@@ -73,16 +81,8 @@ __detect_OS() {
     then
       # fix os name
       __OS="debian"
-      # try extract version name
-      VERS_SID_JESSIE=$(cat /etc/debian_version | head -n 1 | egrep -i '(jessie|sid)')
-      if [[ -n "${VERS_SID_JESSIE}" ]]
-      then
-        # set fix version id
-        __VERSION="jessie_sid"
-      else
-        # try extract version id
-        __VERSION=$(cat /etc/debian_version | head -n 1 | sed -e 's/^[^0-9]*\([0-9]\+\).*/\1/')
-      fi
+      # try extract version id
+      __VERSION=$(cat /etc/debian_version | head -n 1 | sed -e 's/^[^0-9]*\([0-9]\+\).*/\1/')
     fi
   fi
   # osx environment
@@ -100,12 +100,169 @@ __detect_OS() {
   fi
 }
 
+# check and set RUBY_RELEASE for processing
+__detect_RUBY_RELEASE() {
+  # check if setting from ruby-release where overriden by arguments
+  if [[ "${__RUBY_RELEASE}" != "" ]]
+  then
+    # override any pre-defines
+    RUBY_RELEASE="${__RUBY_RELEASE}"
+  fi
+
+  # check and reset RUBY_RELEASE if set to latest
+  if [[ "${RUBY_RELEASE}" == "latest" ]]
+  then
+    # reset to locate latest
+    RUBY_RELEASE=""
+  fi
+}
+
+# check to auto-detect ruby release for download package URL
+__detect_TRAVIS_CI_PACKAGE() {
+  # initialize
+  TRAVIS_CI_RUBY_RELEASE=""
+  TRAVIS_CI_RUBY_PACKAGE=""
+  # try to detect latest binaries for this OS/VERSION/MACHINE
+  DETECTED_RUBY_RELEASE=$(curl -slL --compressed --url "http://rubies.travis-ci.org/" | \
+                          # only lines with hrefs
+                          grep "href=" | \
+                          # just those for current selected os, version, architecture
+                          grep "/${__OS}/${__VERSION}/${__MACHINE}/" | \
+                          # just filter the ruby- links
+                          sed -e 's/^.*href=".*ruby-\([^"]*\)">.*/\1/' | \
+                          # looking for release numbers
+                          egrep '[1-9]\.[0-9]{1,2}\.[0-9]{1,3}(\-.+)?$' | \
+                          # create a unique list
+                          sort --unique | \
+                          # sort them by respecting the number sortings a.b.c
+                          sort --field-separator=. --key=1,1 --key=2,2 --key=3,3 --numeric-sort --reverse | \
+                          # grep if looking for a defined release
+                          egrep "${FILTER_RUBY_RELEASE}" | \
+                          # the first is our selection
+                          head -n 1)
+  # check result
+  if [[ "${DETECTED_RUBY_RELEASE}" != "" ]]
+  then
+    # update release identifier
+    TRAVIS_CI_RUBY_RELEASE="${DETECTED_RUBY_RELEASE}"
+    # define URL
+    TRAVIS_CI_RUBY_PACKAGE="https://rubies.travis-ci.org/${__OS}/${__VERSION}/${__MACHINE}/ruby-${TRAVIS_CI_RUBY_RELEASE}.tar.bz2"
+    # Info message
+    echo "Detected ruby package: $TRAVIS_CI_RUBY_PACKAGE"
+  fi
+}
+
+# check to auto-detect ruby release for download package URL
+__detect_RVM_IO_PACKAGE() {
+  # initialize
+  RVM_IO_RUBY_RELEASE=""
+  RVM_IO_RUBY_PACKAGE=""
+  # try to detect latest binaries for this OS/VERSION/MACHINE
+  DETECTED_RUBY_RELEASE=$(curl -slL --compressed --url "https://rvm.io/binaries/${__OS}/${__VERSION}/${__MACHINE}/" | \
+                          # only lines with hrefs
+                          grep "href=" | \
+                          # just filter the ruby- links
+                          sed -e 's/^.*href=".*ruby-\([^"]*\)">.*/\1/' | \
+                          # only with bz2 archives
+                          egrep '^.*\.tar\.bz2' | \
+                          # drop the archive string
+                          sed -e 's/\.tar\.bz2$//' | \
+                          # create a unique list
+                          sort --unique | \
+                          # sort them by respecting the number sortings a.b.c
+                          sort --field-separator=. --key=1,1 --key=2,2 --key=3,3 --numeric-sort --reverse | \
+                          # grep if looking for a defined release
+                          egrep "${FILTER_RUBY_RELEASE}" | \
+                          # the first is our selection
+                          head -n 1)
+  # check result
+  if [[ "${DETECTED_RUBY_RELEASE}" != "" ]]
+  then
+    # update release identifier
+    RVM_IO_RUBY_RELEASE="${DETECTED_RUBY_RELEASE}"
+    # define URL
+    RVM_IO_RUBY_PACKAGE="https://rvm.io/binaries/${__OS}/${__VERSION}/${__MACHINE}/ruby-${RVM_IO_RUBY_RELEASE}.tar.bz2"
+    # Info message
+    echo "Detected ruby package: $RVM_IO_RUBY_PACKAGE"
+  fi
+}
+
+# check to auto-detect ruby release for download package URL
+__detect_RUBY_PACKAGE() {
+  # filter regex for RUBY_RELEASES based on selected filter
+  # check and set RUBY_RELEASE if set to matching release a.b.x latest
+  if [[ "${RUBY_RELEASE}" =~ \.x$ ]]
+  then
+    # drop .x for regex
+    FILTER_RUBY_RELEASE="${RUBY_RELEASE//.x/.}"
+    # escape . for regex and append .*
+    FILTER_RUBY_RELEASE="^${FILTER_RUBY_RELEASE//./\.}.*"
+  else
+    # take as is
+    FILTER_RUBY_RELEASE="${RUBY_RELEASE}"
+    # escape . for regex and append $ to match only
+    FILTER_RUBY_RELEASE="^${FILTER_RUBY_RELEASE//./\.}$"
+  fi
+
+  # Searching message
+  echo "Get ruby package for os/machine type $__OS/$__MACHINE distribution release $__VERSION."
+
+  # try to locate packages from distributors
+  __detect_RVM_IO_PACKAGE
+  # on osx check also travis-ci binaries
+  if [[ "${__OS}" == "osx" ]]
+  then
+    __detect_TRAVIS_CI_PACKAGE
+  fi
+
+  # get detected max release by use sort for version string sorting
+  DETECTED_RUBY_RELEASE=$(echo -e "${RVM_IO_RUBY_RELEASE}\n${TRAVIS_CI_RUBY_RELEASE}\n" | sort --unique | sort --field-separator=. --key=1,1 --key=2,2 --key=3,3 --numeric-sort --reverse | head -n 1)
+
+  # RVM.IO is always first choice when available for same release
+  if [[ "${RVM_IO_RUBY_RELEASE}" != "" && "${RVM_IO_RUBY_RELEASE}" == "${DETECTED_RUBY_RELEASE}" ]]
+  then
+    RUBY_RELEASE="${RVM_IO_RUBY_RELEASE}"
+    RUBY_PACKAGE="${RVM_IO_RUBY_PACKAGE}"
+  # test for newer or release from TRAVIS-CI
+  elif [[ "${TRAVIS_CI_RUBY_RELEASE}" != "" && "${TRAVIS_CI_RUBY_RELEASE}" == "${DETECTED_RUBY_RELEASE}" ]]
+  then
+    RUBY_RELEASE="${TRAVIS_CI_RUBY_RELEASE}"
+    RUBY_PACKAGE="${TRAVIS_CI_RUBY_PACKAGE}"
+  fi
+}
+
+# clean fixed /Users/travis/.rvm bindings in objects
+__fix_TRAVIS_CI_bindings() {
+  # for more details check https://github.com/4commerce-technologies-AG/rvm-mini/issues/5
+  # check if on osx and have right tools
+  if [[ "${__OS}" != "osx" || -z "$(which otool)" || -z "$(which install_name_tool)" ]]
+  then
+    return
+  fi
+  # get fix travis link
+  TRAVIS_CI_DYLIB=$(otool -L -r ./vendor/ruby/bin/ruby | grep "/Users/travis/.rvm/rubies/ruby-${RUBY_RELEASE}/lib/libruby." | sed -e 's#.*/Users/travis/.rvm/rubies/ruby-'"${RUBY_RELEASE}"'/lib/\([^ ]*\).*$#\1#')
+  # check that found what was expetectd
+  if [[ "$TRAVIS_CI_DYLIB" =~ ^libruby\..*\.dylib$ ]]
+  then
+    # and do it for all files from location ./vendor/ruby
+    find ./vendor/ruby -type f -exec bash -c '\
+      HAS_TRAVIS_CI_BINDING=$(grep "/Users/travis/.rvm/rubies/ruby-'"${RUBY_RELEASE}"'/lib/libruby." "{}"); \
+      if [[ "$HAS_TRAVIS_CI_BINDING" != "" ]] ; then \
+        FILE_DEPTH=$(expr $(echo "{}" | sed -e "s#[^/]##g" | wc -m ) - 1); \
+        LOADER_PATH=""; \
+        for ((i=$FILE_DEPTH;i>3;i--)); do LOADER_PATH="../$LOADER_PATH"; done; \
+        LOADER_PATH="@loader_path/$LOADER_PATH"'"lib/${TRAVIS_CI_DYLIB}"'; \
+        SEARCH_DYLIB="/Users/travis/.rvm/rubies/ruby-"'"${RUBY_RELEASE}"'"/lib/"'"${TRAVIS_CI_DYLIB}"'; \
+        install_name_tool -change "$SEARCH_DYLIB" "$LOADER_PATH" "{}"; \
+      fi \
+    ' \;
+    # patch id of the library
+    install_name_tool -id "${TRAVIS_CI_DYLIB}" "./vendor/ruby/lib/${TRAVIS_CI_DYLIB}" 2>/dev/null
+  fi
+}
+
 # get system params
 __detect_OS
-
-# initialize
-RUBY_RELEASE=""
-UPDATE_RUBYGEMS="latest"
 
 # read and detect args
 while [ "$1" != "" ]
@@ -142,14 +299,14 @@ do
     # use args as options for different ruby OS VERSION and RELEASE build
     *)
       # check if special ruby release was already set
-      if [[ "$RUBY_RELEASE" != "" ]]
+      if [[ "${__RUBY_RELEASE}" != "" ]]
       then
         # if more than 1 arg was given, that means version was set in front of ruby release
-        __VERSION="$RUBY_RELEASE"
+        __VERSION="${__RUBY_RELEASE}"
       fi
 
       # fix release to install
-      RUBY_RELEASE="$1"
+      __RUBY_RELEASE="$1"
       ;;
 
   esac
@@ -158,14 +315,8 @@ do
   shift
 done
 
-# check to auto-detect latest ruby release
-if [[ "${RUBY_RELEASE}" == "" || "${RUBY_RELEASE}" == "latest" ]]
-then
-  # try to detect latest binaries for this OS/VERSION/MACHINE
-  LATEST_RUBY_RELEASE=$(curl -slL --compressed --url "https://rvm.io/binaries/${__OS}/${__VERSION}/${__MACHINE}/" | sed -e 's/^.*href="ruby-\([^"]*\)">.*/\1/' | egrep '^.*\.tar\.bz2' | sort --unique --reverse | head -n 1)
-  # re-set RUBY_RELEASE
-  RUBY_RELEASE="${LATEST_RUBY_RELEASE/.tar.bz2*/}"
-fi
+# identify RUBY_RELEASE
+__detect_RUBY_RELEASE
 
 # check if to use system wide ruby installation or get binaries from rvmio
 if [[ "${RUBY_RELEASE}" == "local" ]]
@@ -182,15 +333,21 @@ then
   done
 
 else
-  # define URL
-  RUBY_PACKAGE="https://rvm.io/binaries/${__OS}/${__VERSION}/${__MACHINE}/ruby-${RUBY_RELEASE}.tar.bz2"
+  # auto-detect the package for selected ruby release
+  __detect_RUBY_PACKAGE
 
-  # Installation message
-  echo "Get ruby package for os/machine type $__OS/$__MACHINE distribution release $__VERSION."
-  echo "Load ruby binaries from: $RUBY_PACKAGE"
+  # check detected package
+  if [[ "${RUBY_PACKAGE}" != "" ]]
+  then
+    echo "Use binary package from: ${RUBY_PACKAGE}"
+  else
+    echo
+    echo "No binary package available for the requested ruby release. Abort!"
+    exit 2
+  fi
 
   # try to get file
-  CHK_URL=$(curl -sSL -Is "$RUBY_PACKAGE" | grep -E "(HTTP/2 200|200 OK)")
+  CHK_URL=$(curl -sSL -Is "$RUBY_PACKAGE" | egrep "(HTTP/2 200|200 OK)")
 
   # test existing of url
   if [[ "$?" != "0" ]]
@@ -202,7 +359,7 @@ else
 
   # create vendor/ruby and download and extract package
   mkdir -p vendor/ruby
-  RUBY_INST=$(curl -sSL "$RUBY_PACKAGE" | tar -xj -C vendor/ruby --strip-components=1 --exclude='*/config' --exclude='*/.irbrc' --exclude='*/lib/ruby/gems' --exclude='*/lib/ruby/site_ruby' --exclude='*/lib/ruby/vendor_ruby' --exclude='*/lib/pkgconfig' --exclude='*/share')
+  RUBY_INST=$(curl -sSL "$RUBY_PACKAGE" | tar -xj -C vendor/ruby --strip-components=1 --exclude='*/config' --exclude='*/.irbrc' --exclude='*/lib/ruby/gems' --exclude='*/lib/ruby/site_ruby' --exclude='*/lib/ruby/vendor_ruby' --exclude='*/lib/pkgconfig' --exclude='*/share' 2>/dev/null)
 
   # check status
   if [[ "$?" != "0" ]]
@@ -211,6 +368,9 @@ else
     echo "I am sorry, there was an error during ruby installation. Please retry. Abort!"
     exit 9
   fi
+
+  # check and fix dyld errors from fixed bindings while compiling
+  __fix_TRAVIS_CI_bindings
 fi
 
 # update rubygems to latest available
@@ -240,7 +400,7 @@ then
   echo "Update rubygems package from: $RUBYGEMS_PACKAGE"
 
   # try to get file
-  CHK_URL=$(curl -sSL -Is "$RUBYGEMS_PACKAGE" | grep -E "(HTTP/2 200|200 OK)")
+  CHK_URL=$(curl -sSL -Is "$RUBYGEMS_PACKAGE" | egrep "(HTTP/2 200|200 OK)")
 
   # test existing of url
   if [[ "$?" != "0" ]]
@@ -278,7 +438,7 @@ then
   rm -rf "$RUBYGEMS_TMP"; mkdir -p "$RUBYGEMS_TMP"
 
   # download and extract package to temp path
-  RUBYGEMS_INST=$(curl -sSL "$RUBYGEMS_PACKAGE" | tar -xz -C "$RUBYGEMS_TMP")
+  RUBYGEMS_INST=$(curl -sSL "$RUBYGEMS_PACKAGE" | tar -xz -C "$RUBYGEMS_TMP" 2>/dev/null)
 
   # check status
   if [[ "$?" != "0" ]]
